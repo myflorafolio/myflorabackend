@@ -16,9 +16,8 @@ app.get("/", (_req, res) => {
   res.send("My Flora Folio backend is live 🌿");
 });
 
-
 // =======================
-// ASK (general AI)
+// ASK
 // =======================
 app.post("/ask", async (req, res) => {
   try {
@@ -44,9 +43,8 @@ app.post("/ask", async (req, res) => {
   }
 });
 
-
 // =======================
-// IDENTIFY (photo → plant)
+// IDENTIFY
 // =======================
 app.post("/identify", async (req, res) => {
   try {
@@ -167,13 +165,10 @@ Rules:
       name,
       scientificName,
       careSummary,
-
       petSafety,
-
       detailedCare: detailedCareText,
       details: detailedCareText,
       guide: detailedCareText,
-
       light,
       water,
       humidity,
@@ -181,7 +176,6 @@ Rules:
       soil,
       fertilizer,
     });
-
   } catch (error) {
     console.error("IDENTIFY ERROR:", error);
     res.status(500).json({
@@ -191,42 +185,73 @@ Rules:
   }
 });
 
-
 // =======================
-// ZONE AI (NEW)
+// ZONE PLANTS
 // =======================
 app.post("/zone-plants", async (req, res) => {
   try {
-    const { zone } = req.body;
+    const { zone, exclude = [] } = req.body;
 
     if (!zone) {
       return res.status(400).json({ error: "Missing zone" });
     }
 
+    const excludeText = Array.isArray(exclude) && exclude.length
+      ? `Avoid repeating these plants: ${exclude.join(", ")}.`
+      : "";
+
     const response = await client.responses.create({
       model: "gpt-4.1-mini",
-      input: `Give me 8 outdoor plants suitable for USDA hardiness zone ${zone}.
-Return ONLY a clean list like:
-- Plant name — short care note`,
+      input: `Give me exactly 5 plant recommendations for USDA hardiness zone ${zone}.
+
+Respond ONLY as valid JSON in this exact format:
+{
+  "plants": [
+    {
+      "name": "plant name",
+      "scientificName": "scientific name if known",
+      "summary": "one short reason it suits this zone",
+      "imageQuery": "best search phrase for a photo of this plant"
+    }
+  ]
+}
+
+Rules:
+- Exactly 5 plants
+- Good choices for the zone
+- Diverse suggestions
+- imageQuery should be short and photo-friendly
+- No markdown
+- JSON only
+${excludeText}`,
     });
 
-    const text =
+    const raw =
       response.output_text ||
       response.output?.[0]?.content?.[0]?.text ||
-      "No suggestions";
+      "";
 
-    res.json({ result: text });
+    console.log("RAW ZONE RESPONSE:", raw);
 
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      parsed = { plants: [] };
+    }
+
+    const plants = Array.isArray(parsed.plants) ? parsed.plants : [];
+
+    res.json({ plants });
   } catch (error) {
     console.error("ZONE ERROR:", error);
-    res.status(500).json({ error: "Zone AI failed" });
+    res.status(500).json({
+      error: "Zone AI failed",
+      details: error?.message || String(error),
+    });
   }
 });
 
-
-// =======================
-// START SERVER
-// =======================
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
