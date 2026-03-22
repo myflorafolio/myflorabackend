@@ -16,9 +16,6 @@ app.get("/", (_req, res) => {
   res.send("My Flora Folio backend is live 🌿");
 });
 
-// =======================
-// ASK
-// =======================
 app.post("/ask", async (req, res) => {
   try {
     const { message } = req.body;
@@ -43,9 +40,6 @@ app.post("/ask", async (req, res) => {
   }
 });
 
-// =======================
-// IDENTIFY
-// =======================
 app.post("/identify", async (req, res) => {
   try {
     console.log("IDENTIFY BODY KEYS:", Object.keys(req.body || {}));
@@ -74,28 +68,8 @@ app.post("/identify", async (req, res) => {
           content: [
             {
               type: "input_text",
-              text: `Identify this plant from the photo and respond ONLY as valid JSON.
-
-Use these exact keys:
-{
-  "name": "common plant name",
-  "scientificName": "scientific name if known",
-  "careSummary": "2-3 sentence short summary",
-  "petSafety": "state clearly if toxic to cats/dogs, non-toxic, or uncertain",
-  "fullCareGuide": {
-    "light": "specific light needs",
-    "water": "specific watering advice",
-    "humidity": "humidity needs",
-    "temperature": "temperature needs",
-    "soil": "best soil type",
-    "fertilizer": "fertilizer guidance"
-  }
-}
-
-Rules:
-- Use the image itself to identify the plant
-- Include pet safety for cats and dogs
-- Return JSON only`,
+              text:
+                'Identify this plant from the image and respond ONLY as valid JSON with these exact keys: "name", "scientificName", "careSummary". Example: {"name":"Monstera deliciosa","scientificName":"Monstera deliciosa","careSummary":"Bright indirect light. Water when top inch dries. Likes humidity."}',
             },
             {
               type: "input_image",
@@ -121,8 +95,6 @@ Rules:
         name: raw || "Unknown plant",
         scientificName: "",
         careSummary: "",
-        petSafety: "Pet safety uncertain",
-        fullCareGuide: {},
       };
     }
 
@@ -133,120 +105,34 @@ Rules:
       "Unknown plant";
 
     const scientificName = parsed.scientificName || "";
-    const careSummary = parsed.careSummary || "";
-
-    const petSafety =
-      parsed.petSafety ||
-      parsed.toxicity ||
-      "Pet safety uncertain";
-
-    const fullCareGuide = parsed.fullCareGuide || {};
-
-    const light = fullCareGuide.light || "";
-    const water = fullCareGuide.water || "";
-    const humidity = fullCareGuide.humidity || "";
-    const temperature = fullCareGuide.temperature || "";
-    const soil = fullCareGuide.soil || "";
-    const fertilizer = fullCareGuide.fertilizer || "";
-
-    const detailedCareText = [
-      light ? `Light: ${light}` : "",
-      water ? `Water: ${water}` : "",
-      humidity ? `Humidity: ${humidity}` : "",
-      temperature ? `Temperature: ${temperature}` : "",
-      soil ? `Soil: ${soil}` : "",
-      fertilizer ? `Fertilizer: ${fertilizer}` : "",
-      petSafety ? `Pet safety: ${petSafety}` : "",
-    ]
-      .filter(Boolean)
-      .join("\n\n");
+    const careSummary =
+      parsed.careSummary ||
+      parsed.summary ||
+      parsed.care ||
+      "";
 
     res.json({
       name,
+      commonName: name,
+      plantName: name,
+      title: name,
+
       scientificName,
+
       careSummary,
-      petSafety,
-      detailedCare: detailedCareText,
-      details: detailedCareText,
-      guide: detailedCareText,
-      light,
-      water,
-      humidity,
-      temperature,
-      soil,
-      fertilizer,
+      summary: careSummary,
+      care: careSummary,
+      details: careSummary,
+
+      reply: `${name}${scientificName ? ` (${scientificName})` : ""}${careSummary ? ` - ${careSummary}` : ""}`,
+      result: `${name}${scientificName ? ` (${scientificName})` : ""}${careSummary ? ` - ${careSummary}` : ""}`,
+
+      raw,
     });
   } catch (error) {
     console.error("IDENTIFY ERROR:", error);
     res.status(500).json({
       error: "Identify failed",
-      details: error?.message || String(error),
-    });
-  }
-});
-
-// =======================
-// ZONE PLANTS
-// =======================
-app.post("/zone-plants", async (req, res) => {
-  try {
-    const { zone, exclude = [] } = req.body;
-
-    if (!zone) {
-      return res.status(400).json({ error: "Missing zone" });
-    }
-
-    const excludeText = Array.isArray(exclude) && exclude.length
-      ? `Avoid repeating these plants: ${exclude.join(", ")}.`
-      : "";
-
-    const response = await client.responses.create({
-      model: "gpt-4.1-mini",
-      input: `Give me exactly 5 plant recommendations for USDA hardiness zone ${zone}.
-
-Respond ONLY as valid JSON in this exact format:
-{
-  "plants": [
-    {
-      "name": "plant name",
-      "scientificName": "scientific name if known",
-      "summary": "one short reason it suits this zone",
-      "imageQuery": "best search phrase for a photo of this plant"
-    }
-  ]
-}
-
-Rules:
-- Exactly 5 plants
-- Good choices for the zone
-- Diverse suggestions
-- imageQuery should be short and photo-friendly
-- No markdown
-- JSON only
-${excludeText}`,
-    });
-
-    const raw =
-      response.output_text ||
-      response.output?.[0]?.content?.[0]?.text ||
-      "";
-
-    console.log("RAW ZONE RESPONSE:", raw);
-
-    let parsed;
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      parsed = { plants: [] };
-    }
-
-    const plants = Array.isArray(parsed.plants) ? parsed.plants : [];
-
-    res.json({ plants });
-  } catch (error) {
-    console.error("ZONE ERROR:", error);
-    res.status(500).json({
-      error: "Zone AI failed",
       details: error?.message || String(error),
     });
   }
