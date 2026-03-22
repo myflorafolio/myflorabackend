@@ -15,7 +15,39 @@ const client = new OpenAI({
 app.get("/", (_req, res) => {
   res.send("My Flora Folio backend is live 🌿");
 });
+app.post("/zone-check", async (req, res) => {
+  try {
+    const { plant, zone } = req.body;
 
+    const prompt = `
+    Does the plant "${plant}" grow well in hardiness zone ${zone}?
+
+    Answer in JSON like:
+    {
+      "match": true or false,
+      "reason": "short explanation"
+    }
+    `;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: prompt }],
+    });
+
+    const text = completion.choices[0].message.content;
+
+    // Try to extract JSON
+    const jsonStart = text.indexOf("{");
+    const jsonEnd = text.lastIndexOf("}") + 1;
+    const jsonString = text.slice(jsonStart, jsonEnd);
+
+    res.json(JSON.parse(jsonString));
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Error checking plant");
+  }
+});
 app.post("/ask", async (req, res) => {
   try {
     const { message } = req.body;
