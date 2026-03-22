@@ -75,6 +75,7 @@ Use these exact keys:
   "name": "common plant name",
   "scientificName": "scientific name if known",
   "careSummary": "2-3 sentence short summary",
+  "petSafety": "state clearly if toxic to cats/dogs, non-toxic, or uncertain",
   "fullCareGuide": {
     "light": "specific light needs",
     "water": "specific watering advice",
@@ -87,8 +88,9 @@ Use these exact keys:
 
 Rules:
 - Use the image itself to identify the plant.
+- Include pet safety for cats and dogs when commonly known.
+- If uncertain, say "Pet safety uncertain".
 - Do not say unknown unless you truly cannot tell.
-- Be specific and practical.
 - Return JSON only, no markdown, no extra words.`,
             },
             {
@@ -115,6 +117,7 @@ Rules:
         name: raw || "Unknown plant",
         scientificName: "",
         careSummary: "",
+        petSafety: "Pet safety uncertain",
         fullCareGuide: {},
       };
     }
@@ -132,6 +135,13 @@ Rules:
       parsed.care ||
       "";
 
+    const petSafety =
+      parsed.petSafety ||
+      parsed.petSafe ||
+      parsed.petSafetyInfo ||
+      parsed.toxicity ||
+      "Pet safety uncertain";
+
     const fullCareGuide = parsed.fullCareGuide || {};
 
     const light = fullCareGuide.light || "";
@@ -148,6 +158,7 @@ Rules:
       temperature ? `Temperature: ${temperature}` : "",
       soil ? `Soil: ${soil}` : "",
       fertilizer ? `Fertilizer: ${fertilizer}` : "",
+      petSafety ? `Pet safety: ${petSafety}` : "",
     ]
       .filter(Boolean)
       .join("\n\n");
@@ -166,6 +177,11 @@ Rules:
       aiCareSummary: careSummary,
       summary: careSummary,
       care: careSummary,
+
+      petSafety,
+      petSafe: petSafety,
+      petSafetyInfo: petSafety,
+      toxicity: petSafety,
 
       fullCareGuide,
       detailedCare: detailedCareText,
