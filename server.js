@@ -4,7 +4,6 @@ import OpenAI from "openai";
 
 const app = express();
 
-// 🔥 IMPORTANT: allow large images
 app.use(cors());
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
@@ -13,19 +12,17 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// ✅ Health check
 app.get("/", (_req, res) => {
   res.send("My Flora Folio backend is live 🌿");
 });
 
-// ✅ TEXT AI
 app.post("/ask", async (req, res) => {
   try {
     const { message } = req.body;
 
     const response = await client.responses.create({
       model: "gpt-4.1-mini",
-      input: message,
+      input: message || "Hello",
     });
 
     const reply =
@@ -36,16 +33,17 @@ app.post("/ask", async (req, res) => {
     res.json({ reply });
   } catch (error) {
     console.error("ASK ERROR:", error);
-    res.status(500).json({ error: "Ask failed" });
+    res.status(500).json({
+      error: "Ask failed",
+      details: error?.message || String(error),
+    });
   }
 });
 
-// ✅ PLANT IDENTIFICATION
 app.post("/identify", async (req, res) => {
   try {
     console.log("IDENTIFY BODY KEYS:", Object.keys(req.body || {}));
 
-    // 🔥 accept multiple possible field names from app
     const imageBase64 =
       req.body.imageBase64 ||
       req.body.image ||
@@ -53,12 +51,7 @@ app.post("/identify", async (req, res) => {
       req.body.photo ||
       req.body.imageData;
 
-    const prompt =
-      req.body.prompt ||
-      "Identify this plant from the image. Start with the plant name, then give a short care summary.";
-
     if (!imageBase64) {
-      console.log("❌ No image found in request");
       return res.status(400).json({ error: "Missing image data" });
     }
 
@@ -73,7 +66,11 @@ app.post("/identify", async (req, res) => {
         {
           role: "user",
           content: [
-            { type: "input_text", text: prompt },
+            {
+              type: "input_text",
+              text:
+                'Identify this plant from the image and respond ONLY as valid JSON with these exact keys: "name", "scientificName", "careSummary". Example: {"name":"Monstera deliciosa","scientificName":"Monstera deliciosa","careSummary":"Bright indirect light. Water when top inch dries. Likes humidity."}',
+            },
             {
               type: "input_image",
               image_url: `data:image/jpeg;base64,${cleanBase64}`,
@@ -83,23 +80,57 @@ app.post("/identify", async (req, res) => {
       ],
     });
 
-    const reply =
+    const raw =
       response.output_text ||
       response.output?.[0]?.content?.[0]?.text ||
-      "I could not identify this plant.";
+      "";
 
-    console.log("🌿 IDENTIFY RESULT:", reply);
+    console.log("RAW IDENTIFY RESPONSE:", raw);
 
-    // 🔥 send multiple keys so app can read it no matter what
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      parsed = {
+        name: raw || "Unknown plant",
+        scientificName: "",
+        careSummary: "",
+      };
+    }
+
+    const name =
+      parsed.name ||
+      parsed.commonName ||
+      parsed.plantName ||
+      "Unknown plant";
+
+    const scientificName = parsed.scientificName || "";
+    const careSummary =
+      parsed.careSummary ||
+      parsed.summary ||
+      parsed.care ||
+      "";
+
     res.json({
-      name: reply,
-      reply: reply,
-      result: reply,
-      raw: reply,
-    });
+      name,
+      commonName: name,
+      plantName: name,
+      title: name,
 
+      scientificName,
+
+      careSummary,
+      summary: careSummary,
+      care: careSummary,
+      details: careSummary,
+
+      reply: `${name}${scientificName ? ` (${scientificName})` : ""}${careSummary ? ` - ${careSummary}` : ""}`,
+      result: `${name}${scientificName ? ` (${scientificName})` : ""}${careSummary ? ` - ${careSummary}` : ""}`,
+
+      raw,
+    });
   } catch (error) {
-    console.error("❌ IDENTIFY ERROR:", error);
+    console.error("IDENTIFY ERROR:", error);
     res.status(500).json({
       error: "Identify failed",
       details: error?.message || String(error),
@@ -107,9 +138,8 @@ app.post("/identify", async (req, res) => {
   }
 });
 
-// ✅ START SERVER
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
