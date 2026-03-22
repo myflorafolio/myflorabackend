@@ -68,8 +68,28 @@ app.post("/identify", async (req, res) => {
           content: [
             {
               type: "input_text",
-              text:
-                'Identify this plant from the image and respond ONLY as valid JSON with these exact keys: "name", "scientificName", "careSummary". Example: {"name":"Monstera deliciosa","scientificName":"Monstera deliciosa","careSummary":"Bright indirect light. Water when top inch dries. Likes humidity."}',
+              text: `Identify this plant from the photo and respond ONLY as valid JSON.
+
+Use these exact keys:
+{
+  "name": "common plant name",
+  "scientificName": "scientific name if known",
+  "careSummary": "2-3 sentence short summary",
+  "fullCareGuide": {
+    "light": "specific light needs",
+    "water": "specific watering advice",
+    "humidity": "humidity needs",
+    "temperature": "temperature needs",
+    "soil": "best soil type",
+    "fertilizer": "fertilizer guidance"
+  }
+}
+
+Rules:
+- Use the image itself to identify the plant.
+- Do not say unknown unless you truly cannot tell.
+- Be specific and practical.
+- Return JSON only, no markdown, no extra words.`,
             },
             {
               type: "input_image",
@@ -95,6 +115,7 @@ app.post("/identify", async (req, res) => {
         name: raw || "Unknown plant",
         scientificName: "",
         careSummary: "",
+        fullCareGuide: {},
       };
     }
 
@@ -111,6 +132,26 @@ app.post("/identify", async (req, res) => {
       parsed.care ||
       "";
 
+    const fullCareGuide = parsed.fullCareGuide || {};
+
+    const light = fullCareGuide.light || "";
+    const water = fullCareGuide.water || "";
+    const humidity = fullCareGuide.humidity || "";
+    const temperature = fullCareGuide.temperature || "";
+    const soil = fullCareGuide.soil || "";
+    const fertilizer = fullCareGuide.fertilizer || "";
+
+    const detailedCareText = [
+      light ? `Light: ${light}` : "",
+      water ? `Water: ${water}` : "",
+      humidity ? `Humidity: ${humidity}` : "",
+      temperature ? `Temperature: ${temperature}` : "",
+      soil ? `Soil: ${soil}` : "",
+      fertilizer ? `Fertilizer: ${fertilizer}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+
     res.json({
       name,
       commonName: name,
@@ -120,9 +161,25 @@ app.post("/identify", async (req, res) => {
       scientificName,
 
       careSummary,
+      careGuide: careSummary,
+      careText: careSummary,
+      aiCareSummary: careSummary,
       summary: careSummary,
       care: careSummary,
-      details: careSummary,
+
+      fullCareGuide,
+      detailedCare: detailedCareText,
+      detailedCareText,
+      guide: detailedCareText,
+      details: detailedCareText,
+      recommendation: detailedCareText,
+
+      light,
+      water,
+      humidity,
+      temperature,
+      soil,
+      fertilizer,
 
       reply: `${name}${scientificName ? ` (${scientificName})` : ""}${careSummary ? ` - ${careSummary}` : ""}`,
       result: `${name}${scientificName ? ` (${scientificName})` : ""}${careSummary ? ` - ${careSummary}` : ""}`,
