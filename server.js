@@ -16,6 +16,10 @@ app.get("/", (_req, res) => {
   res.send("My Flora Folio backend is live 🌿");
 });
 
+
+// =======================
+// ASK (general AI)
+// =======================
 app.post("/ask", async (req, res) => {
   try {
     const { message } = req.body;
@@ -40,6 +44,10 @@ app.post("/ask", async (req, res) => {
   }
 });
 
+
+// =======================
+// IDENTIFY (photo → plant)
+// =======================
 app.post("/identify", async (req, res) => {
   try {
     console.log("IDENTIFY BODY KEYS:", Object.keys(req.body || {}));
@@ -87,11 +95,9 @@ Use these exact keys:
 }
 
 Rules:
-- Use the image itself to identify the plant.
-- Include pet safety for cats and dogs when commonly known.
-- If uncertain, say "Pet safety uncertain".
-- Do not say unknown unless you truly cannot tell.
-- Return JSON only, no markdown, no extra words.`,
+- Use the image itself to identify the plant
+- Include pet safety for cats and dogs
+- Return JSON only`,
             },
             {
               type: "input_image",
@@ -129,16 +135,10 @@ Rules:
       "Unknown plant";
 
     const scientificName = parsed.scientificName || "";
-    const careSummary =
-      parsed.careSummary ||
-      parsed.summary ||
-      parsed.care ||
-      "";
+    const careSummary = parsed.careSummary || "";
 
     const petSafety =
       parsed.petSafety ||
-      parsed.petSafe ||
-      parsed.petSafetyInfo ||
       parsed.toxicity ||
       "Pet safety uncertain";
 
@@ -165,30 +165,14 @@ Rules:
 
     res.json({
       name,
-      commonName: name,
-      plantName: name,
-      title: name,
-
       scientificName,
-
       careSummary,
-      careGuide: careSummary,
-      careText: careSummary,
-      aiCareSummary: careSummary,
-      summary: careSummary,
-      care: careSummary,
 
       petSafety,
-      petSafe: petSafety,
-      petSafetyInfo: petSafety,
-      toxicity: petSafety,
 
-      fullCareGuide,
       detailedCare: detailedCareText,
-      detailedCareText,
-      guide: detailedCareText,
       details: detailedCareText,
-      recommendation: detailedCareText,
+      guide: detailedCareText,
 
       light,
       water,
@@ -196,12 +180,8 @@ Rules:
       temperature,
       soil,
       fertilizer,
-
-      reply: `${name}${scientificName ? ` (${scientificName})` : ""}${careSummary ? ` - ${careSummary}` : ""}`,
-      result: `${name}${scientificName ? ` (${scientificName})` : ""}${careSummary ? ` - ${careSummary}` : ""}`,
-
-      raw,
     });
+
   } catch (error) {
     console.error("IDENTIFY ERROR:", error);
     res.status(500).json({
@@ -211,6 +191,42 @@ Rules:
   }
 });
 
+
+// =======================
+// ZONE AI (NEW)
+// =======================
+app.post("/zone-plants", async (req, res) => {
+  try {
+    const { zone } = req.body;
+
+    if (!zone) {
+      return res.status(400).json({ error: "Missing zone" });
+    }
+
+    const response = await client.responses.create({
+      model: "gpt-4.1-mini",
+      input: `Give me 8 outdoor plants suitable for USDA hardiness zone ${zone}.
+Return ONLY a clean list like:
+- Plant name — short care note`,
+    });
+
+    const text =
+      response.output_text ||
+      response.output?.[0]?.content?.[0]?.text ||
+      "No suggestions";
+
+    res.json({ result: text });
+
+  } catch (error) {
+    console.error("ZONE ERROR:", error);
+    res.status(500).json({ error: "Zone AI failed" });
+  }
+});
+
+
+// =======================
+// START SERVER
+// =======================
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
