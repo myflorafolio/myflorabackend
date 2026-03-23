@@ -12,9 +12,7 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// 🌿 CHANGE THIS → get from https://unsplash.com/developers
 const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY;
-
 
 // ✅ HEALTH CHECK
 app.get("/", (_req, res) => {
@@ -22,47 +20,56 @@ app.get("/", (_req, res) => {
 });
 
 
-// 🌱 GET IMAGE FROM UNSPLASH
+// 🌿 GET IMAGE FROM UNSPLASH
 async function getPlantImage(plantName) {
   try {
     const url = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(
       plantName + " plant"
-    )}&per_page=1&client_id=${UNSPLASH_ACCESS_KEY}`;
+    )}&per_page=1`;
 
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}`,
+      },
+    });
+
     const data = await response.json();
 
-    return data.results?.[0]?.urls?.regular || null;
+    return data.results?.[0]?.urls?.regular || "";
   } catch (error) {
     console.error("IMAGE ERROR:", error);
-    return null;
+    return "";
   }
 }
 
 
-// 🌱 ASK AI FOR PLANTS + IMAGES
-app.post("/ask", async (req, res) => {
+// 🌱 🔥 MAIN ROUTE YOUR APP NEEDS
+app.post("/zone-plants", async (req, res) => {
   try {
     const { zone, exclude = [] } = req.body;
 
-    const prompt = `
-    Give me 5 outdoor plants that grow well in hardiness zone ${zone}.
-
-    Avoid these:
-    ${exclude.join(", ")}
-
-    Return ONLY JSON:
-    {
-      "summary": "short friendly sentence",
-      "plants": [
-        { "name": "Plant 1" },
-        { "name": "Plant 2" },
-        { "name": "Plant 3" },
-        { "name": "Plant 4" },
-        { "name": "Plant 5" }
-      ]
+    if (!zone) {
+      return res.status(400).json({ error: "Missing zone" });
     }
-    `;
+
+    const prompt = `
+Give me 5 outdoor plants that grow well in hardiness zone ${zone}.
+
+Avoid these plants:
+${exclude.join(", ")}
+
+Return ONLY JSON in this format:
+{
+  "summary": "short friendly sentence",
+  "plants": [
+    { "name": "Plant 1", "why": "short reason" },
+    { "name": "Plant 2", "why": "short reason" },
+    { "name": "Plant 3", "why": "short reason" },
+    { "name": "Plant 4", "why": "short reason" },
+    { "name": "Plant 5", "why": "short reason" }
+  ]
+}
+`;
 
     const aiResponse = await client.responses.create({
       model: "gpt-4.1-mini",
@@ -74,19 +81,22 @@ app.post("/ask", async (req, res) => {
       aiResponse.output?.[0]?.content?.[0]?.text ||
       "";
 
+    // 🔥 CLEAN PARSE (safe)
     const jsonStart = raw.indexOf("{");
     const jsonEnd = raw.lastIndexOf("}") + 1;
     const jsonString = raw.slice(jsonStart, jsonEnd);
 
     const parsed = JSON.parse(jsonString);
 
-    // 🔥 ADD IMAGES TO EACH PLANT
+    // 🌿 ADD IMAGES
     const plantsWithImages = await Promise.all(
       parsed.plants.map(async (plant) => {
-        const image = await getPlantImage(plant.name);
+        const imageURL = await getPlantImage(plant.name);
+
         return {
           name: plant.name,
-          image,
+          why: plant.why || "",
+          imageURL,
         };
       })
     );
@@ -96,29 +106,52 @@ app.post("/ask", async (req, res) => {
       plants: plantsWithImages,
     });
   } catch (error) {
-    console.error("ASK ERROR:", error);
+    console.error("ZONE PLANTS ERROR:", error);
     res.status(500).json({
-      error: "Ask failed",
+      error: "Zone plants failed",
       details: error?.message || String(error),
     });
   }
 });
 
 
-// 🌿 ZONE CHECK (UNCHANGED)
+// 🌿 (OPTIONAL KEEP) CHAT ROUTE
+app.post("/ask", async (req, res) => {
+  try {
+    const { message } = req.body;
+
+    const response = await client.responses.create({
+      model: "gpt-4.1-mini",
+      input: message || "Hello",
+    });
+
+    const reply =
+      response.output_text ||
+      response.output?.[0]?.content?.[0]?.text ||
+      "No reply";
+
+    res.json({ reply });
+  } catch (error) {
+    console.error("ASK ERROR:", error);
+    res.status(500).json({ error: "Ask failed" });
+  }
+});
+
+
+// 🌿 ZONE CHECK
 app.post("/zone-check", async (req, res) => {
   try {
     const { plant, zone } = req.body;
 
     const prompt = `
-    Does the plant "${plant}" grow well in hardiness zone ${zone}?
+Does "${plant}" grow well in hardiness zone ${zone}?
 
-    Return ONLY JSON:
-    {
-      "match": true or false,
-      "reason": "short explanation"
-    }
-    `;
+Return ONLY JSON:
+{
+  "match": true or false,
+  "reason": "short explanation"
+}
+`;
 
     const response = await client.responses.create({
       model: "gpt-4.1-mini",
@@ -137,15 +170,12 @@ app.post("/zone-check", async (req, res) => {
     res.json(JSON.parse(jsonString));
   } catch (error) {
     console.error("ZONE CHECK ERROR:", error);
-    res.status(500).json({
-      error: "Zone check failed",
-      details: error?.message || String(error),
-    });
+    res.status(500).json({ error: "Zone check failed" });
   }
 });
 
 
-// 🌼 IDENTIFY (UNCHANGED — SAFE)
+// 🌼 IDENTIFY (unchanged + safe)
 app.post("/identify", async (req, res) => {
   try {
     const imageBase64 =
@@ -191,10 +221,7 @@ app.post("/identify", async (req, res) => {
     res.json({ name });
   } catch (error) {
     console.error("IDENTIFY ERROR:", error);
-    res.status(500).json({
-      error: "Identify failed",
-      details: error?.message || String(error),
-    });
+    res.status(500).json({ error: "Identify failed" });
   }
 });
 
