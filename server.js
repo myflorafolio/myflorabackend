@@ -142,10 +142,10 @@ app.post("/ask", async (req, res) => {
 app.post("/zone-check", async (req, res) => {
   try {
     const { plantName, plant, zone } = req.body;
-    const finalPlant = plantName;
+    const finalPlant = plantName || plant;
 
     const prompt = `
-Does "${plant}" grow well in hardiness zone ${zone}?
+Does "${finalPlant}" grow well in hardiness zone ${zone}?
 
 Return ONLY JSON:
 {
