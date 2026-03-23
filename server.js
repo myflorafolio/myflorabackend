@@ -141,7 +141,8 @@ app.post("/ask", async (req, res) => {
 // 🌿 ZONE CHECK
 app.post("/zone-check", async (req, res) => {
   try {
-    const { plant, zone } = req.body;
+    const { plantName, plant, zone } = req.body;
+    const finalPlant = plantName;
 
     const prompt = `
 Does "${plant}" grow well in hardiness zone ${zone}?
