@@ -225,6 +225,80 @@ app.post("/identify", async (req, res) => {
   }
 });
 
+app.post("/help-my-plant", async (req, res) => {
+  try {
+    const imageBase64 =
+      req.body.imageBase64 ||
+      req.body.image ||
+      req.body.base64 ||
+      req.body.photo ||
+      req.body.imageData;
+
+    if (!imageBase64) {
+      return res.status(400).json({ error: "Missing image data" });
+    }
+
+    const cleanBase64 = imageBase64.replace(
+      /^data:image\/[a-zA-Z]+;base64,/,
+      ""
+    );
+
+    const response = await client.responses.create({
+      model: "gpt-4.1-mini",
+      input: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: `
+Look at this plant photo and return ONLY valid JSON in this format:
+{
+  "plantName": "name of plant if known, otherwise empty string",
+  "issue": "short description of the most likely problem",
+  "summary": "kind, helpful 1-2 sentence overview",
+  "careTips": [
+    "tip 1",
+    "tip 2",
+    "tip 3"
+  ]
+}
+`,
+            },
+            {
+              type: "input_image",
+              image_url: `data:image/jpeg;base64,${cleanBase64}`,
+            },
+          ],
+        },
+      ],
+    });
+
+    const raw =
+      response.output_text ||
+      response.output?.[0]?.content?.[0]?.text ||
+      "";
+
+    const jsonStart = raw.indexOf("{");
+    const jsonEnd = raw.lastIndexOf("}") + 1;
+    const jsonString = raw.slice(jsonStart, jsonEnd);
+
+    const parsed = JSON.parse(jsonString);
+
+    res.json({
+      plantName: parsed.plantName || "",
+      issue: parsed.issue || "",
+      summary: parsed.summary || "",
+      careTips: Array.isArray(parsed.careTips) ? parsed.careTips : [],
+    });
+  } catch (error) {
+    console.error("HELP MY PLANT ERROR:", error);
+    res.status(500).json({
+      error: "Help My Plant failed",
+      details: error?.message || String(error),
+    });
+  }
+});
 
 // 🚀 START SERVER
 const PORT = process.env.PORT || 3000;
