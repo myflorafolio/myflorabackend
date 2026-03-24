@@ -291,18 +291,6 @@ Rules:
   }
 });
 
-    const name =
-      response.output_text ||
-      response.output?.[0]?.content?.[0]?.text ||
-      "Unknown plant";
-
-    res.json({ name });
-  } catch (error) {
-    console.error("IDENTIFY ERROR:", error);
-    res.status(500).json({ error: "Identify failed" });
-  }
-});
-
 app.post("/help-my-plant", async (req, res) => {
   try {
     const imageBase64 =
