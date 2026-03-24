@@ -203,7 +203,38 @@ app.post("/identify", async (req, res) => {
           content: [
             {
               type: "input_text",
-              text: "Identify this plant and give a short name only.",
+              text: `
+Identify this plant from the image and return ONLY valid JSON in this exact format:
+
+{
+  "commonName": "string",
+  "scientificName": "string",
+  "confidence": "low, medium, or high",
+  "light": "short helpful sentence",
+  "wateringSummary": "short helpful sentence",
+  "wateringIntervalDays": 7,
+  "humidity": "short helpful sentence",
+  "soil": "short helpful sentence",
+  "petSafety": "short helpful sentence",
+  "careSummary": "short helpful sentence",
+  "interestingFacts": ["fact 1", "fact 2", "fact 3"],
+  "pestWatch": [
+    {
+      "name": "pest name",
+      "signs": "short signs to watch for",
+      "treatment": "short treatment tip",
+      "url": "https://example.com"
+    }
+  ]
+}
+
+Rules:
+- Return JSON only.
+- Keep all fields present.
+- If unsure, still provide your best estimate.
+- If no pests are especially likely, return an empty pestWatch array.
+- Keep responses concise and beginner-friendly.
+`,
             },
             {
               type: "input_image",
@@ -213,6 +244,52 @@ app.post("/identify", async (req, res) => {
         },
       ],
     });
+
+    const raw =
+      response.output_text ||
+      response.output?.[0]?.content?.[0]?.text ||
+      "";
+
+    const jsonStart = raw.indexOf("{");
+    const jsonEnd = raw.lastIndexOf("}") + 1;
+    const jsonString = raw.slice(jsonStart, jsonEnd);
+
+    const parsed = JSON.parse(jsonString);
+
+    res.json({
+      commonName: parsed.commonName || "",
+      scientificName: parsed.scientificName || "",
+      confidence: parsed.confidence || "medium",
+      light: parsed.light || "",
+      wateringSummary: parsed.wateringSummary || "",
+      wateringIntervalDays:
+        typeof parsed.wateringIntervalDays === "number"
+          ? parsed.wateringIntervalDays
+          : 7,
+      humidity: parsed.humidity || "",
+      soil: parsed.soil || "",
+      petSafety: parsed.petSafety || "",
+      careSummary: parsed.careSummary || "",
+      interestingFacts: Array.isArray(parsed.interestingFacts)
+        ? parsed.interestingFacts
+        : [],
+      pestWatch: Array.isArray(parsed.pestWatch)
+        ? parsed.pestWatch.map((item) => ({
+            name: item?.name || "",
+            signs: item?.signs || "",
+            treatment: item?.treatment || "",
+            url: item?.url || ""
+          }))
+        : [],
+    });
+  } catch (error) {
+    console.error("IDENTIFY ERROR:", error);
+    res.status(500).json({
+      error: "Identify failed",
+      details: error?.message || String(error),
+    });
+  }
+});
 
     const name =
       response.output_text ||
