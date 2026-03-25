@@ -53,10 +53,14 @@ app.post("/zone-plants", async (req, res) => {
     }
 
     const prompt = `
-Give me 5 outdoor plants that grow well in hardiness zone ${zone}.
+Suggest 5 DIFFERENT outdoor plants that grow well in hardiness zone ${zone}.
 
-Avoid these plants:
-${exclude.join(", ")}
+Rules:
+- Do not repeat any plants from this exclude list: ${exclude.length ? exclude.join(", ") : "none"}
+- Give a varied mix, not the same common plants every time
+- Avoid duplicates or near-duplicates
+- Prefer variety in flower, foliage, shrub, and hardy perennial types when possible
+- Keep each reason short and useful
 
 Return ONLY JSON in this format:
 {
@@ -90,7 +94,7 @@ Return ONLY JSON in this format:
 
     // 🌿 ADD IMAGES
     const plantsWithImages = await Promise.all(
-      parsed.plants.map(async (plant) => {
+  uniquePlants.map(async (plant) => {
         const imageURL = await getPlantImage(plant.name);
 
         return {
