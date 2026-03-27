@@ -92,6 +92,8 @@ Return ONLY JSON in this format:
 
     const parsed = JSON.parse(jsonString);
 
+    const uniquePlants = parsed.plants || [];
+
     // 🌿 ADD IMAGES
     const plantsWithImages = await Promise.all(
   ((parsed.plants || [])).map(async (plant) => {
