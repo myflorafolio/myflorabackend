@@ -94,7 +94,7 @@ Return ONLY JSON in this format:
 
     // 🌿 ADD IMAGES
     const plantsWithImages = await Promise.all(
-  uniquePlants.map(async (plant) => {
+  ((parsed.plants || [])).map(async (plant) => {
         const imageURL = await getPlantImage(plant.name);
 
         return {
