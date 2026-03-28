@@ -181,6 +181,60 @@ Return ONLY JSON:
   }
 });
 
+// 🌿 PLANTING ZONE
+app.post("/planting-zone", async (req, res) => {
+  try {
+    const { plantName, plant } = req.body;
+    const finalPlant = plantName || plant;
+
+    if (!finalPlant || !String(finalPlant).trim()) {
+      return res.status(400).json({ error: "Missing plant name." });
+    }
+
+    const prompt = `
+What is the USDA outdoor planting hardiness zone range for "${finalPlant}"?
+
+Return ONLY JSON:
+{
+  "plantingZone": "4a-8b"
+}
+
+Rules:
+- Return a USDA zone range like "4a-8b" or a single zone like "10a".
+- This is for OUTDOOR growing hardiness zones only.
+- Do not describe indoor room placement.
+- If uncertain, return:
+{
+  "plantingZone": ""
+}
+`;
+
+    const response = await client.responses.create({
+      model: "gpt-4.1-mini",
+      input: prompt,
+    });
+
+    const raw =
+      response.output_text ||
+      response.output?.[0]?.content?.[0]?.text ||
+      "";
+
+    const jsonStart = raw.indexOf("{");
+    const jsonEnd = raw.lastIndexOf("}") + 1;
+    const jsonString = raw.slice(jsonStart, jsonEnd);
+
+    const parsed = JSON.parse(jsonString);
+
+    return res.json({
+      plantingZone: parsed.plantingZone || "",
+    });
+  } catch (error) {
+    console.error("planting-zone error:", error);
+    return res.status(500).json({
+      error: "Failed to get planting zone.",
+    });
+  }
+});
 
 // 🌼 IDENTIFY (unchanged + safe)
 app.post("/identify", async (req, res) => {
