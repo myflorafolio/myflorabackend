@@ -270,7 +270,7 @@ app.post("/identify", async (req, res) => {
           content: [
             {
               type: "input_text",
-              text: `
+text: ‘
 Identify this plant from the image and return ONLY valid JSON in this exact format:
 
 {
@@ -300,8 +300,9 @@ Rules:
 - Return JSON only.
 - Keep all fields present.
 - If unsure, still provide your best estimate.
-- "plantingZone" should be the USDA outdoor hardiness range like "10b-12" or "" if truly unknown.
-- For houseplants, still return the outdoor hardiness zone range where they can live outdoors year-round.
+- "plantingZone" must be a USDA outdoor hardiness range like "10b-12" or a single zone like "9a".
+- For houseplants, tropicals, succulents, cacti, bonsai, and indoor ornamentals, still return the outdoor USDA hardiness zone range where they can survive outdoors year-round.
+- Do NOT leave "plantingZone" blank unless the plant truly cannot be identified at all.
 - If no pests are especially likely, return an empty pestWatch array.
 - Keep responses concise and beginner-friendly.
 `,
@@ -321,6 +322,35 @@ Rules:
       "";
 
     const parsed = extractJSON(raw);
+
+    if (!parsed.plantingZone && parsed.scientificName) {
+  const zoneResponse = await client.responses.create({
+    model: "gpt-4.1-mini",
+    input: `
+For the plant "${parsed.scientificName}", return ONLY JSON:
+{
+  "plantingZone": "10b-12"
+}
+
+Rules:
+- Return the USDA outdoor hardiness range.
+- Use a range like "10b-12" or a single zone like "9a".
+- Do not include explanation text.
+- If truly unknown, return:
+{
+  "plantingZone": ""
+}
+`,
+  });
+
+  const zoneRaw =
+    zoneResponse.output_text ||
+    zoneResponse.output?.[0]?.content?.[0]?.text ||
+    "";
+
+  const zoneParsed = extractJSON(zoneRaw);
+  parsed.plantingZone = zoneParsed.plantingZone || "";
+}
 
     console.log("identify plantingZone:", parsed.plantingZone || "");
 
