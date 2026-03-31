@@ -270,7 +270,7 @@ app.post("/identify", async (req, res) => {
           content: [
             {
               type: "input_text",
-text: ‘
+text: `
 Identify this plant from the image and return ONLY valid JSON in this exact format:
 
 {
