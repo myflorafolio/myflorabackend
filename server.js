@@ -285,6 +285,7 @@ Identify this plant from the image and return ONLY valid JSON in this exact form
   "petSafety": "short helpful sentence",
   "careSummary": "short helpful sentence",
   "plantingZone": "10b-12",
+  "safeOutdoorMinTempC": 12,
   "interestingFacts": ["fact 1", "fact 2", "fact 3"],
   "pestWatch": [
     {
@@ -305,6 +306,7 @@ Rules:
 - Do NOT leave "plantingZone" blank unless the plant truly cannot be identified at all.
 - If no pests are especially likely, return an empty pestWatch array.
 - Keep responses concise and beginner-friendly.
+- "safeOutdoorMinTempC" must be the approximate minimum outdoor temperature in degrees celcius that this plant can safely tolerate, based on the scientific name.
 `,
             },
             {
