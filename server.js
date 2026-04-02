@@ -325,7 +325,7 @@ Rules:
 
     const parsed = extractJSON(raw);
 
-    if (!parsed.plantingZone && parsed.scientificName) {
+    if ((!parsed.plantingZone || parsed.safeOutdoorMinTempC == null) && parsed.scientificName) {
   const zoneResponse = await client.responses.create({
     model: "gpt-4.1-mini",
     input: `
@@ -354,10 +354,12 @@ Rules:
     "";
 
   const zoneParsed = extractJSON(zoneRaw);
-  parsed.plantingZone = zoneParsed.plantingZone || "";
-}
+      parsed.plantingZone = parsed.plantingZone || zoneParsed.plantingZone || "";
+      parsed.safeOutdoorMinTempC = parsed.safeOutdoorMinTempC ?? zoneParsed.safeOutdoorMinTempC ?? null;}
 
     console.log("identify plantingZone:", parsed.plantingZone || "");
+    console.log("identify safeOutdoorMinTempC:", parsed.safeOutdoorMinTempC);
+    
 
     res.json({
       commonName: parsed.commonName || "",
@@ -374,6 +376,7 @@ Rules:
       petSafety: parsed.petSafety || "",
       careSummary: parsed.careSummary || "",
       plantingZone: parsed.plantingZone || "",
+      safeOutdoorMinTempC: parsed.safeOutdoorMinTempC ?? null, 
       interestingFacts: Array.isArray(parsed.interestingFacts)
         ? parsed.interestingFacts
         : [],
