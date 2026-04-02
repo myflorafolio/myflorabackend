@@ -285,7 +285,7 @@ Identify this plant from the image and return ONLY valid JSON in this exact form
   "petSafety": "short helpful sentence",
   "careSummary": "short helpful sentence",
   "plantingZone": "10b-12",
-  "preferredOutdoorMinTempC": 12,
+  "preferredOutdoorTempC": 12,
   "interestingFacts": ["fact 1", "fact 2", "fact 3"],
   "pestWatch": [
     {
@@ -306,7 +306,7 @@ Rules:
 - Do NOT leave "plantingZone" blank unless the plant truly cannot be identified at all.
 - If no pests are especially likely, return an empty pestWatch array.
 - Keep responses concise and beginner-friendly.
-- "preferredOutdoorMinTempC" must be the approximate preferred outdoor temperature in degrees celcius, based on the scientific name.
+- "preferredOutdoorTempC" must be the approximate preferred outdoor temperature in degrees celcius, based on the scientific name.
 `,
             },
             {
@@ -325,25 +325,25 @@ Rules:
 
     const parsed = extractJSON(raw);
 
-    if ((!parsed.plantingZone || parsed.preferredOutdoorMinTempC == null) && parsed.scientificName) {
+    if ((!parsed.plantingZone || parsed.preferredOutdoorTempC == null) && parsed.scientificName) {
   const zoneResponse = await client.responses.create({
     model: "gpt-4.1-mini",
     input: `
 For the plant "${parsed.scientificName}", return ONLY JSON:
 {
   "plantingZone": "10b-12",
-  "preferredOutdoorMinTempC": 12
+  "preferredOutdoorTempC": 12
 }
 
 Rules:
 - Return the USDA outdoor hardiness range.
 - Use a range like "10b-12" or a single zone like "9a".
-- "preferredOutdoorMinTempC" must be an integer in degrees Celsius based on the scientific name.
+- "preferredOutdoorTempC" must be an integer in degrees Celsius based on the scientific name.
 - Do not include explanation text.
 - If truly unknown, return:
 {
   "plantingZone": ""
-  "preferredOutdoorMinTempC": null
+  "preferredOutdoorTempC": null
 }
 `,
   });
@@ -355,10 +355,10 @@ Rules:
 
   const zoneParsed = extractJSON(zoneRaw);
       parsed.plantingZone = parsed.plantingZone || zoneParsed.plantingZone || "";
-      parsed.preferredOutdoorMinTempC = parsed.preferredOutdoorMinTempC ?? zoneParsed.preferredOutdoorMinTempC ?? null;}
+      parsed.preferredOutdoorTempC = parsed.preferredOutdoorTempC ?? zoneParsed.preferredOutdoorTempC ?? null;}
 
     console.log("identify plantingZone:", parsed.plantingZone || "");
-    console.log("identify preferredOutdoorMinTempC:", parsed.preferredOutdoorMinTempC);
+    console.log("identify preferredOutdoorTempC:", parsed.preferredOutdoorTempC);
     
 
     res.json({
@@ -376,7 +376,7 @@ Rules:
       petSafety: parsed.petSafety || "",
       careSummary: parsed.careSummary || "",
       plantingZone: parsed.plantingZone || "",
-      preferredOutdoorMinTempC: parsed.preferredOutdoorMinTempC ?? null, 
+      preferredOutdoorTempC: parsed.preferredOutdoorTempC ?? null, 
       interestingFacts: Array.isArray(parsed.interestingFacts)
         ? parsed.interestingFacts
         : [],
