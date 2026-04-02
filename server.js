@@ -470,6 +470,54 @@ Look at this plant photo and return ONLY valid JSON in this format:
   }
 });
 
+app.post("/pest-help", async (req, res) => {
+  try {
+    const plantName = req.body.plantName || "";
+    const scientificName = req.body.scientificName || "";
+    const pestName = req.body.pestName || "";
+
+    const response = await client.responses.create({
+      model: "gpt-4.1-mini",
+      input: `
+For the plant "${scientificName || plantName}" and the pest "${pestName}", return ONLY valid JSON:
+
+{
+  "name": "${pestName}",
+  "signs": "short signs to watch for",
+  "treatment": "short practical treatment steps",
+  "url": "https://example.com"
+}
+
+Rules:
+- Return JSON only.
+- Keep all fields present.
+- "treatment" should be concise, practical, and beginner-friendly.
+- "url" must be a real helpful source about treating that pest.
+`
+    });
+
+    const raw =
+      response.output_text ||
+      response.output?.[0]?.content?.[0]?.text ||
+      "";
+
+    const parsed = extractJSON(raw);
+
+    return res.json({
+      name: parsed.name || pestName,
+      signs: parsed.signs || "",
+      treatment: parsed.treatment || "",
+      url: parsed.url || ""
+    });
+  } catch (error) {
+    console.error("PEST HELP ERROR:", error);
+    return res.status(500).json({
+      error: "Failed to generate pest help.",
+      details: error?.message || String(error)
+    });
+  }
+});
+
 // 🚀 START SERVER
 const PORT = process.env.PORT || 3000;
 
