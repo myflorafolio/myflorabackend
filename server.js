@@ -331,16 +331,19 @@ Rules:
     input: `
 For the plant "${parsed.scientificName}", return ONLY JSON:
 {
-  "plantingZone": "10b-12"
+  "plantingZone": "10b-12",
+  "safeOutdoorMinTempC": 12
 }
 
 Rules:
 - Return the USDA outdoor hardiness range.
 - Use a range like "10b-12" or a single zone like "9a".
+- "safeOutdoorMinTempC" must be an integer in degrees Celsius based on the scientific name.
 - Do not include explanation text.
 - If truly unknown, return:
 {
   "plantingZone": ""
+  "safeOutdoorMinTempC": null
 }
 `,
   });
