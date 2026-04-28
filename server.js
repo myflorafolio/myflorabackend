@@ -243,6 +243,95 @@ Rules:
   }
 });
 
+// 🌿 CARE FROM NAME
+app.post("/care-from-name", async (req, res) => {
+  try {
+    const { plantName } = req.body;
+
+    if (!plantName || !String(plantName).trim()) {
+      return res.status(400).json({ error: "Missing plant name" });
+    }
+
+    const prompt = `
+For the plant "${plantName}", return ONLY valid JSON in this exact format:
+
+{
+  "commonName": "string",
+  "scientificName": "string",
+  "light": "short helpful sentence",
+  "wateringSummary": "short helpful sentence",
+  "wateringIntervalDays": 7,
+  "humidity": "short helpful sentence",
+  "soil": "short helpful sentence",
+  "petSafety": "short helpful sentence",
+  "careSummary": "short helpful sentence",
+  "interestingFacts": ["fact 1", "fact 2", "fact 3"],
+  "pestWatch": [
+    {
+      "name": "pest name",
+      "signs": "short signs to watch for",
+      "treatment": "short treatment tip",
+      "url": "https://example.com"
+    }
+  ]
+}
+
+Rules:
+- Return JSON only.
+- Keep all fields present.
+- Rewrite the careSummary and interestingFacts freshly each time with slightly different wording and focus.
+- Keep responses concise, beginner-friendly, and natural.
+- Do not mention that you are refreshing or rewriting.
+- If unsure, still provide your best estimate.
+- If no pests are especially likely, return an empty pestWatch array.
+`;
+
+    const response = await client.responses.create({
+      model: "gpt-4.1-mini",
+      input: prompt,
+    });
+
+    const raw =
+      response.output_text ||
+      response.output?.[0]?.content?.[0]?.text ||
+      "";
+
+    const parsed = extractJSON(raw);
+
+    res.json({
+      commonName: parsed.commonName || plantName,
+      scientificName: parsed.scientificName || "",
+      light: parsed.light || "",
+      wateringSummary: parsed.wateringSummary || "",
+      wateringIntervalDays:
+        typeof parsed.wateringIntervalDays === "number"
+          ? parsed.wateringIntervalDays
+          : 7,
+      humidity: parsed.humidity || "",
+      soil: parsed.soil || "",
+      petSafety: parsed.petSafety || "",
+      careSummary: parsed.careSummary || "",
+      interestingFacts: Array.isArray(parsed.interestingFacts)
+        ? parsed.interestingFacts
+        : [],
+      pestWatch: Array.isArray(parsed.pestWatch)
+        ? parsed.pestWatch.map((item) => ({
+            name: item?.name || "",
+            signs: item?.signs || "",
+            treatment: item?.treatment || "",
+            url: item?.url || "",
+          }))
+        : [],
+    });
+  } catch (error) {
+    console.error("CARE FROM NAME ERROR:", error);
+    res.status(500).json({
+      error: "Care from name failed",
+      details: error?.message || String(error),
+    });
+  }
+});
+
 // 🌼 IDENTIFY
 app.post("/identify", async (req, res) => {
   try {
